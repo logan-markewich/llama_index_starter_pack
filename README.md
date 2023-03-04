@@ -1,5 +1,5 @@
 # llama_index_starter_pack
-This repository provides very basic flask, streamlit, and docker examples for the llama_index (fka gpt_index) package.
+This repository provides very basic flask, streamlit, and docker examples for the llama_index (FKA gpt_index) package.
 
 If you need to quickly create a POC to impress your boss, start here!
 
@@ -35,4 +35,10 @@ Using the local `Dockerfile`, you can run `docker build -t my_tag_name .` to bui
 Inside the `Dockerfile`, you can comment the app you want to run and the port you want to expose, based on if you want streamlit or flask.
 
 When running the image, be sure to include the -p option to access the proper ports (8501, or 5601).
+
+
+## Contributing
+
+I welcome any suggestions or PRs! If we start adding more examples, it might be good to refactor to have a folder per example type
+
 
