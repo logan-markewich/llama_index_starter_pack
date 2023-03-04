@@ -3,6 +3,8 @@ This repository provides very basic flask, streamlit, and docker examples for th
 
 If you need to quickly create a POC to impress your boss, start here!
 
+If you are having trouble with dependencies, I dump my entire env into `requirements_full.txt`, but otherwise, use the base `requirements.txt`.
+
 
 ## Local Setup
 ```
