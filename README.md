@@ -1,5 +1,5 @@
 # llama_index_starter_pack
-This repository provides very basic flask, streamlit, and docker examples for the llama_index (FKA gpt_index) package.
+This repository provides very basic flask, streamlit, and docker examples for the [llama_index](https://github.com/jerryjliu/gpt_index) (FKA gpt_index) package.
 
 If you need to quickly create a POC to impress your boss, start here!
 
