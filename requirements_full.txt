@@ -37,7 +37,7 @@ jmespath==1.0.1
 joblib==1.2.0
 jsonschema==4.17.3
 langchain==0.0.100
-llama-index==0.4.19
+llama-index==0.4.20
 lxml==4.9.2
 markdown-it-py==2.2.0
 MarkupSafe==2.1.2
