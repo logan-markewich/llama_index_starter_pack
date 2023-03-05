@@ -21,6 +21,13 @@ def initialize_index(index_name, documents_folder):
 
     return index
 
+
+@st.cache_data(max_entries=200, persist=True)
+def query_index(_index, query_text):
+    response = _index.query(query_text)
+    return str(response)
+
+
 # This should be cached and only fully runs once
 index = initialize_index(index_name, documents_folder)
 
@@ -34,6 +41,6 @@ st.text("Please enter a query about Paul Graham's essay?")
 text = st.text_input("Query text:")
 
 if st.button("Run Query") and text is not None:
-    response = index.query(text)
+    response = query_index(index, text)
     st.markdown(response)
 
