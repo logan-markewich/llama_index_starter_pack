@@ -27,6 +27,7 @@ There are two main example files
   - loads text from the documents folder (using `st.cache_resource`, so it only loads once)
   - provides an input text-box and a button to run the query
   - The string response is displayed after it finishes
+  - Want to see this example in action? Check it out [here](https://llama-index.streamlit.app/)
 
 
 ## Docker
