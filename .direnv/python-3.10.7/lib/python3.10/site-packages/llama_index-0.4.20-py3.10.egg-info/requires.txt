@@ -1,0 +1,9 @@
+langchain
+openai>=0.26.4
+dataclasses_json
+transformers
+nltk
+numpy
+tenacity<8.2.0
+pandas
+tiktoken
