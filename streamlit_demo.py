@@ -1,10 +1,11 @@
 import os
 
-# NOTE: for local testing only, do NOT deploy with your key hardcoded
-os.environ['OPENAI_API_KEY'] = "your_key_here"
-
 import streamlit as st
-from llama_index import SimpleDirectoryReader, GPTSimpleVectorIndex
+from llama_index import GPTSimpleVectorIndex, SimpleDirectoryReader
+
+# NOTE: for local testing only, do NOT deploy with your key hardcoded
+os.environ["OPENAI_API_KEY"] = st.secrets["openai_api_key"]
+
 
 index_name = "./index.json"
 documents_folder = "./documents"
@@ -43,4 +44,3 @@ text = st.text_input("Query text:")
 if st.button("Run Query") and text is not None:
     response = query_index(index, text)
     st.markdown(response)
-
