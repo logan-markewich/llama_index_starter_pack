@@ -1,13 +1,10 @@
 import os
 
+# NOTE: for local testing only, do NOT deploy with your key hardcoded
+os.environ['OPENAI_API_KEY'] = "your_key_here"
+
 import streamlit as st
-from llama_index import GPTSimpleVectorIndex, SimpleDirectoryReader
-
-# NOTE: use Streamlit Secrets to store your OpenAI API key
-# Learn more about how to use Streamlit at https://docs.streamlit.io/
-os.environ["OPENAI_API_KEY"] = st.secrets["openai_api_key"]
-
-st.write(os.environ["OPENAI_API_KEY"])
+from llama_index import SimpleDirectoryReader, GPTSimpleVectorIndex
 
 index_name = "./index.json"
 documents_folder = "./documents"
@@ -35,11 +32,15 @@ def query_index(_index, query_text):
 index = initialize_index(index_name, documents_folder)
 
 
-st.title("Llama Index Demo")
-st.header("Welcome to the Llama Index Streamlit")
+st.title("Llama Index")
+
+st.header("Welcome to the Llama Index streamlit")
+
 st.text("Please enter a query about Paul Graham's essay?")
+
 text = st.text_input("Query text:")
 
 if st.button("Run Query") and text is not None:
     response = query_index(index, text)
     st.markdown(response)
+
