@@ -5,6 +5,10 @@ If you need to quickly create a POC to impress your boss, start here!
 
 If you are having trouble with dependencies, I dump my entire env into `requirements_full.txt`, but otherwise, use the base `requirements.txt`.
 
+The basic demo includes the classic "Paul Graham Essay" from the original llama_index repo. Some good starting questions are
+- What did the author do growing up?
+- Tell me more about interleaf
+
 
 ## Local Setup
 ```
