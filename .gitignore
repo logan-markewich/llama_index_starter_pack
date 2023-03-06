@@ -1,0 +1,4 @@
+.envrc
+.direnv
+.streamlit/secrets.toml
+.mypy_cache
