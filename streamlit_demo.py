@@ -35,8 +35,8 @@ def query_index(_index, query_text):
 index = initialize_index(index_name, documents_folder)
 
 
-st.title("Llama Index")
-st.header("Welcome to the Llama Index streamlit")
+st.title("Llama Index Demo")
+st.header("Welcome to the Llama Index Streamlit Demo")
 st.text("Please enter a query about Paul Graham's essay?")
 
 text = st.text_input("Query text:")
