@@ -1,7 +1,7 @@
 import os
 
 # NOTE: for local testing only, do NOT deploy with your key hardcoded
-os.environ['OPENAI_API_KEY'] = "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"
+os.environ['OPENAI_API_KEY'] = "your key here"
 
 from multiprocessing import Lock
 from multiprocessing.managers import BaseManager
