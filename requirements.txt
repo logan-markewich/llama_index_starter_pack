@@ -1,4 +1,0 @@
-Flask==2.2.3
-langchain==0.0.103
-llama-index==0.4.22.post1
-streamlit==1.19.0

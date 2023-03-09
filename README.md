@@ -18,32 +18,32 @@ pip install -r requirements.txt
 
 
 ## What is included?
-There are two main example files
-- flask_demo.py (localhost:5601)
-  - `python ./flask_demo.py`
+There are two main example folders
+- flask (runs on localhost:5601/2)
+  - `sh launch_app.py `
   - creates a simple api that loads the text from the documents folder
-  - The "/query" endpoint accepts requests that contain a "text" parameter, which is used to query the index
-  - resturns string response containing the query answer
+  - the "/query" endpoint accepts requests that contain a "text" parameter, which is used to query the index
+  - the "/upload" endpoint is a POST endpoint that inserts an attached text file into the index
+  - the index is managed by a seperate server using locks, since inserting a document is a mutable operation and flask is multithreaded
+  - I strongly recommend using a tool like [Postman](https://www.postman.com/downloads/) to test the api - there are example screenshots using postman in the `postman_examples` folder
 
-- streamlit_demo.py (localhost:8501)
+- streamlit (runs on localhost:8501)
   - `streamlit run streamlit_demo.py`
   - creates a simple UI using streamlit
   - loads text from the documents folder (using `st.cache_resource`, so it only loads once)
   - provides an input text-box and a button to run the query
-  - The string response is displayed after it finishes
-  - Want to see this example in action? Check it out [here](https://llama-index.streamlit.app/)
+  - the string response is displayed after it finishes
+  - want to see this example in action? Check it out [here](https://llama-index.streamlit.app/)
 
 
 ## Docker
-Using the local `Dockerfile`, you can run `docker build -t my_tag_name .` to build a python3.11-slim docker image. It ends up being about 980MB.
+Each example contains a `Dockerfile`. You can run `docker build -t my_tag_name .` to build a python3.11-slim docker image inside your desired folder. It ends up being about 600MB.
 
-Inside the `Dockerfile`, you can comment the app you want to run and the port you want to expose, based on if you want streamlit or flask.
+Inside the `Dockerfile`, certain ports are exposed based on which ports the examples need.
 
 When running the image, be sure to include the -p option to access the proper ports (8501, or 5601).
 
 
 ## Contributing
 
-I welcome any suggestions or PRs! If we start adding more examples, it might be good to refactor to have a folder per example type
-
-
+I welcome any suggestions or PRs, or more examples!
