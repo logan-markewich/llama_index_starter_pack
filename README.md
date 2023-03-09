@@ -20,7 +20,7 @@ pip install -r requirements.txt
 ## What is included?
 There are two main example folders
 - flask (runs on localhost:5601/2)
-  - `sh launch_app.py `
+  - `sh launch_app.sh `
   - creates a simple api that loads the text from the documents folder
   - the "/query" endpoint accepts requests that contain a "text" parameter, which is used to query the index
   - the "/upload" endpoint is a POST endpoint that inserts an attached text file into the index
