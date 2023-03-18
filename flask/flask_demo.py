@@ -26,6 +26,7 @@ def query_index():
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
+    global manager
     if 'file' not in request.files:
         return "Please send a POST request with a file", 400
 
