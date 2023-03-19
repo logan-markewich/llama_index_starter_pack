@@ -31,7 +31,7 @@ There are two main example folders
     - The scope for a frontend is basically limitless - this is intended to give a small taste of what's possible for users less familiar with python
 
 
-![react_frontend screenshot](./react_frontend.png)
+![react_frontend screenshot](./flask_react/react_frontend.png)
 
 
 - streamlit (runs on localhost:8501)
