@@ -1,0 +1,42 @@
+@import url(https://fonts.googleapis.com/css?family=Open+Sans:400italic,400,300,600);
+
+$theme-colors: (
+  primary: #edfbf1,
+  secondary: #bee08b,
+  secondary-hover: #83aa49,
+  text-main: #000000,
+  text-contrast: #ffffff,
+  header-big-block: #f35f2b,
+  header-narrow-block: #00f596,
+);
+
+@function theme-color($key) {
+  @return map-get($theme-colors, $key);
+}
+
+@import './components/components_style';
+
+.app {
+  text-align: center;
+  height: 100vh;
+  width: 100%;
+  background-image: url('../public/Bakground.jpg');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.content {
+  margin-top: 50px;
+  display: flex;
+  flex-direction: row;
+  gap: 50px;
+  width: 900px;
+}
+
+body {
+  font-family: 'Open sans', sans-serif;
+}
