@@ -2,3 +2,7 @@
 .direnv
 .streamlit/secrets.toml
 .mypy_cache
+node_modules
+build
+index.json
+stored_documents.pkl

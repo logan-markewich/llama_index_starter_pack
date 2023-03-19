@@ -1,0 +1,5 @@
+Flask==2.2.3
+Flask-Cors==3.0.10
+langchain==0.0.115
+llama-index==0.4.30
+PyPDF2==3.0.1
