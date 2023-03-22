@@ -38,10 +38,10 @@ def query_index(query_text):
     return response
 
 
-def insert_into_index(doc_text, doc_id=None):
+def insert_into_index(doc_file_path, doc_id=None):
     """Insert new document into global index."""
     global index, stored_docs
-    document = SimpleDirectoryReader(input_files=[doc_text]).load_data()[0]
+    document = SimpleDirectoryReader(input_files=[doc_file_path]).load_data()[0]
     if doc_id is not None:
         document.doc_id = doc_id
     
