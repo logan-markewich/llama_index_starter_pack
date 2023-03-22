@@ -80,5 +80,5 @@ if __name__ == "__main__":
     manager.register('get_documents_list', get_documents_list)
     server = manager.get_server()
 
-    print("starting server...")
+    print("server started...")
     server.serve_forever()
