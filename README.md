@@ -34,14 +34,20 @@ There are two main example folders
 ![react_frontend screenshot](./flask_react/react_frontend.png)
 
 
-- streamlit (runs on localhost:8501)
+- streamlit_vector (runs on localhost:8501)
   - `streamlit run streamlit_demo.py`
-  - creates a simple UI using streamlit
+  - creates a simple UI using streamlit and GPTSimpleVectorIndex
   - loads text from the documents folder (using `st.cache_resource`, so it only loads once)
   - provides an input text-box and a button to run the query
   - the string response is displayed after it finishes
   - want to see this example in action? Check it out [here](https://llama-index.streamlit.app/)
 
+- streamlit_sql_sandbox (runs on localhost:8501)
+  - `streamlit run streamlit_demo.py`
+  - creates a streamlit app using a local SQL database about restaurant inspections in San Francisco ([data sample](https://docs.google.com/spreadsheets/d/1Ag5DBIviYiuRrt2yr3nXmbPFV-FOg5fDH5SM3ZEDnpw/edit#gid=780513932))
+  - The "Setup" tab allows you to configure various LLM and LLama Index settings
+  - The "Llama Index" tab demos some basic Text2SQL capabilities using only Llama Index
+  - The "Langchain+Llama Index" tab uses a custom langchain agent, and uses the SQL index from Llama Index as a tool during conversations.
 
 ## Docker
 Each example contains a `Dockerfile`. You can run `docker build -t my_tag_name .` to build a python3.11-slim docker image inside your desired folder. It ends up being about 600MB-900MB depending on the example.
