@@ -1,7 +1,8 @@
 .envrc
 .direnv
-.streamlit/secrets.toml
+*/.streamlit/secrets.toml
 .mypy_cache
+__pycache__
 node_modules
 build
 index.json
