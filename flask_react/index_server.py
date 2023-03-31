@@ -28,7 +28,7 @@ def initialize_index():
             index.save_to_disk(index_name)
         if os.path.exists(pkl_name):
             with open(pkl_name, "rb") as f:
-                stored_docs = pkl.load(f)
+                stored_docs = pickle.load(f)
 
 
 def query_index(query_text):
