@@ -40,7 +40,7 @@ There are two main example folders
   - loads text from the documents folder (using `st.cache_resource`, so it only loads once)
   - provides an input text-box and a button to run the query
   - the string response is displayed after it finishes
-  - want to see this example in action? Check it out [here](https://llama-index.streamlit.app/)
+  - want to see this example in action? Check it out [here](https://huggingface.co/spaces/llamaindex/llama_index_vector_demo)
 
 - streamlit_sql_sandbox (runs on localhost:8501)
   - `streamlit run streamlit_demo.py`
@@ -48,6 +48,7 @@ There are two main example folders
   - The "Setup" tab allows you to configure various LLM and LLama Index settings
   - The "Llama Index" tab demos some basic Text2SQL capabilities using only Llama Index
   - The "Langchain+Llama Index" tab uses a custom langchain agent, and uses the SQL index from Llama Index as a tool during conversations.
+  - Check out the huggingface space [here!](https://huggingface.co/spaces/llamaindex/llama_index_sql_sandbox)
 
 ## Docker
 Each example contains a `Dockerfile`. You can run `docker build -t my_tag_name .` to build a python3.11-slim docker image inside your desired folder. It ends up being about 600MB-900MB depending on the example.
