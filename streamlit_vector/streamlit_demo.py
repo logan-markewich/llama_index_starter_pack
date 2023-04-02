@@ -3,8 +3,10 @@ import streamlit as st
 from llama_index import GPTSimpleVectorIndex, SimpleDirectoryReader, ServiceContext
 from llama_index.llm_predictor.chatgpt import ChatGPTLLMPredictor
 
+
 index_name = "./index.json"
 documents_folder = "./documents"
+
 
 @st.cache_resource
 def initialize_index(index_name, documents_folder):
@@ -52,4 +54,3 @@ if st.button("Run Query") and text is not None:
     
     with embed_col:
         st.markdown(f"Embedding Tokens Used: {index.service_context.embed_model._last_token_usage}")
-
