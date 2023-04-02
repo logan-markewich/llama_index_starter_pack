@@ -1,3 +1,4 @@
+import os
 from langchain import OpenAI
 from langchain.chat_models import ChatOpenAI
 
@@ -16,8 +17,8 @@ def get_sql_index_tool(sql_index, table_context_dict):
     return run_sql_index_query
 
 
-
-def get_llm(llm_name, model_temperature):
+def get_llm(llm_name, model_temperature, api_key):
+    os.environ['OPENAI_API_KEY'] = api_key
     if llm_name == "text-davinci-003":
         return OpenAI(temperature=model_temperature, model_name=llm_name)
     else:
