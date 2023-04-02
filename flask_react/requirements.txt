@@ -1,5 +1,5 @@
 Flask==2.2.3
 Flask-Cors==3.0.10
-langchain==0.0.123
-llama-index==0.4.39
+langchain==0.0.128
+llama-index==0.5.4
 PyPDF2==3.0.1

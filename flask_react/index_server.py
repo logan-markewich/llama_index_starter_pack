@@ -6,7 +6,7 @@ os.environ['OPENAI_API_KEY'] = "your key here"
 
 from multiprocessing import Lock
 from multiprocessing.managers import BaseManager
-from llama_index import SimpleDirectoryReader, GPTSimpleVectorIndex, Document
+from llama_index import SimpleDirectoryReader, GPTSimpleVectorIndex, Document, ServiceContext
 
 index = None
 stored_docs = {}
@@ -19,16 +19,17 @@ pkl_name = "stored_documents.pkl"
 def initialize_index():
     """Create a new global index, or load one from the pre-set path."""
     global index, stored_docs
-
+    
+    service_context = ServiceContext.from_defaults(chunk_size_limit=512)
     with lock:
         if os.path.exists(index_name):
-            index = GPTSimpleVectorIndex.load_from_disk(index_name)
+            index = GPTSimpleVectorIndex.load_from_disk(index_name, service_context=service_context)
         else:
-            index = GPTSimpleVectorIndex([])
+            index = GPTSimpleVectorIndex([], service_context=service_context)
             index.save_to_disk(index_name)
         if os.path.exists(pkl_name):
             with open(pkl_name, "rb") as f:
-                stored_docs = pkl.load(f)
+                stored_docs = pickle.load(f)
 
 
 def query_index(query_text):
@@ -44,11 +45,11 @@ def insert_into_index(doc_text, doc_id=None):
     document = SimpleDirectoryReader(input_files=[doc_text]).load_data()[0]
     if doc_id is not None:
         document.doc_id = doc_id
-    
-    # Keep track of stored docs -- llama_index doesn't make this easy
-    stored_docs[document.doc_id] = document.text[0:200]  # only take the first 200 chars
 
     with lock:
+        # Keep track of stored docs -- llama_index doesn't make this easy
+        stored_docs[document.doc_id] = document.text[0:200]  # only take the first 200 chars
+
         index.insert(document)
         index.save_to_disk(index_name)
         

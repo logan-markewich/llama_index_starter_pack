@@ -10,4 +10,5 @@ sleep 60
 # start the flask server
 python ./flask_demo.py &
 
+# assumes you've ran npm install already (dockerfile does this during build)
 cd react_frontend && npm run build && serve -s build
