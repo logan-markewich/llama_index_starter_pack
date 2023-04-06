@@ -50,6 +50,14 @@ There are two main example folders
   - The "Langchain+Llama Index" tab uses a custom langchain agent, and uses the SQL index from Llama Index as a tool during conversations.
   - Check out the huggingface space [here!](https://huggingface.co/spaces/llamaindex/llama_index_sql_sandbox)
 
+- streamlit_term_definition (runs on localhost:8501)
+  - `streamlit run streamlit_demo.py`
+  - creates a small app that allows users to extract terms/definitions from documents and query against the extracted information
+  - pre-loaded with information from the NYC Wikipedia page
+  - supports reading text from image uploads
+  - allows users to configure LLM settings
+  - users can build their own knowledge base of terms/definitions
+  - query against these terms as they are added
 
 ## Docker
 Each example contains a `Dockerfile`. You can run `docker build -t my_tag_name .` to build a python3.11-slim docker image inside your desired folder. It ends up being about 600MB-900MB depending on the example.
