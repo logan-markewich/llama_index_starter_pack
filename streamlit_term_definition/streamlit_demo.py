@@ -96,6 +96,7 @@ st.markdown(
         "This demo allows you to upload your own documents (either a screenshot/image or the actual text) and extract terms and definitions, building a knowledge base!\n\n"
         "Powered by [Llama Index](https://gpt-index.readthedocs.io/en/latest/index.html) and OpenAI, you can augment the existing knowledge of an "
         "LLM using your own notes, documents, and images. Then, when you ask about a term or definition, it will use your data first! "
+        "The app is currently pre-loaded with terms from the NYC Wikipedia page."
     )
 )
 
