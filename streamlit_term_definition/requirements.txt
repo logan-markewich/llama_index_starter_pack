@@ -1,0 +1,4 @@
+langchain==0.0.128
+llama-index==0.5.4
+Pillow==9.4.0
+streamlit==1.19.0
