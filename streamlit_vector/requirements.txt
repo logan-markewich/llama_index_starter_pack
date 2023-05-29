@@ -1,3 +1,5 @@
-langchain==0.0.128
-llama-index==0.5.4
+altair==4.2.2
+langchain==0.0.154
+llama-index==0.6.13
 streamlit==1.19.0
+transformers==4.29.2
