@@ -5,7 +5,7 @@ from langchain.prompts.chat import (
     HumanMessagePromptTemplate,
 )
 
-from gpt_index.prompts.prompts import QuestionAnswerPrompt, RefinePrompt
+from llama_index.prompts.prompts import QuestionAnswerPrompt, RefinePrompt
 
 # Text QA templates
 DEFAULT_TEXT_QA_PROMPT_TMPL = (
@@ -13,7 +13,7 @@ DEFAULT_TEXT_QA_PROMPT_TMPL = (
     "---------------------\n"
     "{context_str}"
     "\n---------------------\n"
-    "Given the context information answer the following question "
+    "Given the context information, directly answer the following question "
     "(if you don't know the answer, use the best of your knowledge): {query_str}\n"
 )
 TEXT_QA_TEMPLATE = QuestionAnswerPrompt(DEFAULT_TEXT_QA_PROMPT_TMPL)
@@ -29,6 +29,7 @@ DEFAULT_REFINE_PROMPT_TMPL = (
     "------------\n"
     "Given the new context and using the best of your knowledge, improve the existing answer. "
     "If you can't improve the existing answer, just repeat it again. "
+    "Do not include un-needed or un-helpful information that is shown in the new context. "
     "Do not mention that you've read the above context."
 )
 DEFAULT_REFINE_PROMPT = RefinePrompt(DEFAULT_REFINE_PROMPT_TMPL)
@@ -44,6 +45,7 @@ CHAT_REFINE_PROMPT_TMPL_MSGS = [
         "------------\n"
         "Given the new context and using the best of your knowledge, improve the existing answer. "
         "If you can't improve the existing answer, just repeat it again. "
+        "Do not include un-needed or un-helpful information that is shown in the new context. "
         "Do not mention that you've read the above context."
     ),
 ]
@@ -56,9 +58,7 @@ DEFAULT_REFINE_PROMPT_SEL_LC = ConditionalPromptSelector(
     default_prompt=DEFAULT_REFINE_PROMPT.get_langchain_prompt(),
     conditionals=[(is_chat_model, CHAT_REFINE_PROMPT.get_langchain_prompt())],
 )
-REFINE_TEMPLATE = RefinePrompt(
-    langchain_prompt_selector=DEFAULT_REFINE_PROMPT_SEL_LC
-)
+REFINE_TEMPLATE = RefinePrompt(langchain_prompt_selector=DEFAULT_REFINE_PROMPT_SEL_LC)
 
 DEFAULT_TERM_STR = (
     "Make a list of terms and definitions that are defined in the context, "

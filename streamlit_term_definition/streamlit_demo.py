@@ -4,14 +4,17 @@ import streamlit as st
 from PIL import Image
 from llama_index import (
     Document,
-    GPTSimpleVectorIndex,
+    GPTVectorStoreIndex,
     GPTListIndex,
     LLMPredictor,
     ServiceContext,
     SimpleDirectoryReader,
     PromptHelper,
+    StorageContext,
+    load_index_from_storage,
+    download_loader,
 )
-from llama_index.readers.file.base import DEFAULT_FILE_EXTRACTOR, ImageParser
+from llama_index.readers.file.base import DEFAULT_FILE_READER_CLS
 
 from constants import DEFAULT_TERM_STR, DEFAULT_TERMS, REFINE_TEMPLATE, TEXT_QA_TEMPLATE
 from utils import get_llm
@@ -23,13 +26,14 @@ if "all_terms" not in st.session_state:
 
 @st.cache_resource
 def get_file_extractor():
-    image_parser = ImageParser(keep_image=True, parse_text=True)
-    file_extractor = DEFAULT_FILE_EXTRACTOR
+    ImageReader = download_loader("ImageReader")
+    image_loader = ImageReader(text_type="plain_text")
+    file_extractor = DEFAULT_FILE_READER_CLS
     file_extractor.update(
         {
-            ".jpg": image_parser,
-            ".png": image_parser,
-            ".jpeg": image_parser,
+            ".jpg": image_loader,
+            ".png": image_loader,
+            ".jpeg": image_loader,
         }
     )
 
@@ -52,7 +56,9 @@ def extract_terms(documents, term_extract_str, llm_name, model_temperature, api_
 
     temp_index = GPTListIndex.from_documents(documents, service_context=service_context)
     terms_definitions = str(
-        temp_index.query(term_extract_str, response_mode="tree_summarize")
+        temp_index.as_query_engine(response_mode="tree_summarize").query(
+            term_extract_str
+        )
     )
     terms_definitions = [
         x
@@ -83,8 +89,9 @@ def initialize_index(llm_name, model_temperature, api_key):
 
     service_context = ServiceContext.from_defaults(llm_predictor=LLMPredictor(llm=llm))
 
-    index = GPTSimpleVectorIndex.load_from_disk(
-        "./index.json", service_context=service_context
+    index = load_index_from_storage(
+        StorageContext.from_defaults(persist_dir="./initial_index"),
+        service_context=service_context,
     )
 
     return index
@@ -202,8 +209,14 @@ with query_tab:
         query_text = st.text_input("Ask about a term or definition:")
         if query_text:
             with st.spinner("Generating answer..."):
-                response = st.session_state["llama_index"].query(
-                    query_text, similarity_top_k=5, response_mode="compact",
-                    text_qa_template=TEXT_QA_TEMPLATE, refine_template=REFINE_TEMPLATE
+                response = (
+                    st.session_state["llama_index"]
+                    .as_query_engine(
+                        similarity_top_k=5,
+                        response_mode="compact",
+                        text_qa_template=TEXT_QA_TEMPLATE,
+                        refine_template=REFINE_TEMPLATE,
+                    )
+                    .query(query_text)
                 )
             st.markdown(str(response))
