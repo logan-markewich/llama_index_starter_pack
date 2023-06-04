@@ -106,10 +106,10 @@ with setup_tab:
         "Business table description", value=DEFAULT_BUSINESS_TABLE_DESCRP
     )
     violations_table_descrp = st.text_area(
-        "Business table description", value=DEFAULT_VIOLATIONS_TABLE_DESCRP
+        "Violation table description", value=DEFAULT_VIOLATIONS_TABLE_DESCRP
     )
     inspections_table_descrp = st.text_area(
-        "Business table description", value=DEFAULT_INSPECTIONS_TABLE_DESCRP
+        "Inspection table description", value=DEFAULT_INSPECTIONS_TABLE_DESCRP
     )
 
     table_context_dict = {
