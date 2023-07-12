@@ -81,6 +81,9 @@ def query_worker(key, question, userData):
     print(response)
         
 @app.route("/query", methods=["POST"])
+=======
+@app.route("/query", methods=["GET"])
+>>>>>>> 39422b1a8dd7c0c93e3860e97fd6161d1dfda5c3
 def query_index():
     """_summary_
 
