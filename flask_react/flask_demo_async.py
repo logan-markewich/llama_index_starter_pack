@@ -1,8 +1,10 @@
 import os
-from flask import Flask, request, jsonify, make_response
-from flask_cors import CORS
+import uvicorn
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from werkzeug.utils import secure_filename
 from typing import Any, Dict, List, Tuple
+from llama_index.llms.base import ChatMessage
 import threading    
 import requests
 import time
@@ -10,13 +12,8 @@ import requests
 import json
 import datetime
 import index_server
-class Config(object):
-    DEBUG=True
-    JSON_AS_ASCII=False
     
-app = Flask(__name__)
-app.config.from_object(Config)
-CORS(app)
+app = FastAPI()
 
 # initialize manager connection
 # NOTE: you might want to handle the password in a less hardcoded way
@@ -29,10 +26,23 @@ CORS(app)
 #     print(response)
  
        
-@app.route("/test", methods=["GET"])
+@app.get("/test")
 def test():
+    print("test")
     time.sleep(10)
     return "ok", 200
+
+def chat_history(messages : List) -> List[ChatMessage]:
+    print(messages)
+    
+    history :List[ChatMessage] = None
+    
+    if isinstance(messages, list):
+        for message in messages:
+            for key, value in message.items():
+                history.append(ChatMessage(content=value, role=key)) 
+            
+    return history
 
 def download_file(url, filename, save_dir):
     print(f"download url = {url}")
@@ -68,8 +78,8 @@ def query_worker(key, question, userData):
     response = requests.post(url, data=json_data, headers=headers)
     print(response)
         
-@app.route("/query", methods=["POST"])
-def query_index():
+@app.post("/query")
+def query_index(data: dict):
     """_summary_
 
     Returns:
@@ -81,7 +91,7 @@ def query_index():
         "robotId":1
     }
     """
-    data = request.json
+    print(data)
     user_data = data['userData']
     key = data['key']
     if key is None:
@@ -98,10 +108,10 @@ def query_index():
         "errorCode": 0,
         "errorMsg": ""
     }
-    return make_response(jsonify(response_json)), 200
+    return JSONResponse(content=response_json, status_code=200)
 
-@app.route("/querySync", methods=["POST"])
-def query_index_sync():
+@app.post("/querySync")
+def query_index_sync(data: dict):
     """_summary_
 
     Returns:
@@ -113,7 +123,6 @@ def query_index_sync():
         "robotId":1
     }
     """
-    data = request.json
     user_data = data['userData']
     key = data['key']
     if key is None:
@@ -129,7 +138,7 @@ def query_index_sync():
     }
     response_json['userData'] = user_data
     headers = {"Content-Type": "application/json;charset=utf-8"}
-    return make_response(jsonify(response_json)), 200
+    return JSONResponse(content=response_json, status_code=200, headers=headers)
 
 def chat_worker(key, question, history, userData):
     url = "http://test-api.qi.work/tpd/api/aiWechatMessage/message/callback"
@@ -146,8 +155,8 @@ def chat_worker(key, question, history, userData):
     response = requests.post(url, data=json_data, headers=headers)
     print(response)
     
-@app.route("/chat", methods=["POST"])
-def chat_index_ex():
+@app.post("/chat")
+def chat_index_ex(data: dict):
     """_summary_
 
     Returns:
@@ -158,7 +167,6 @@ def chat_index_ex():
         "userData": {}
     }
     """
-    data = request.json
     print(data)
     user_data = data['userData']
     key = data['key']
@@ -169,31 +177,23 @@ def chat_index_ex():
     if question is None:
         return "No question found, please include a ?question=blah parameter in the URL", 400
     
-    messages = data['messages']
-    print(messages)
-    if isinstance(messages, list):
-        history = []
-        for message in messages:
-            if 'user' in message and 'assistant' in message:
-                history.append((message["user"],message["assistant"]))
-            
-    chathistory = history if len(history) else None
+    messages = data['messages']            
+    chathistory = chat_history(messages)
     
     print(key)
-    print(history)
     print(question)
     
-    thread = threading.Thread(target=chat_worker, args=(key, question, history, user_data, ))
+    thread = threading.Thread(target=chat_worker, args=(key, question, chathistory, user_data, ))
     thread.start()
 
     response_json = {
         "errorCode": 0,
         "errorMsg": ""
     }
-    return make_response(jsonify(response_json)), 200
+    return JSONResponse(content=response_json, status_code=200)
 
-@app.route("/chatSync", methods=["POST"])
-def chat_index_sync():
+@app.post("/chatSync")
+def chat_index_sync(data: dict):
     """_summary_
 
     Returns:
@@ -204,7 +204,6 @@ def chat_index_sync():
         "userData": {}
     }
     """
-    data = request.json
     print(data)
     user_data = data['userData']
     key = data['key']
@@ -216,20 +215,12 @@ def chat_index_sync():
         return "No question found, please include a ?question=blah parameter in the URL", 400
     
     messages = data['messages']
-    print(messages)
-    if isinstance(messages, list):
-        history = []
-        for message in messages:
-            if 'user' in message and 'assistant' in message:
-                history.append((message["user"],message["assistant"]))
-            
-    chathistory = history if len(history) else None
+    chathistory = chat_history(messages)
     
     print(key)
-    print(history)
     print(question)
     
-    response = index_server.chat_index(key, question, history)
+    response = index_server.chat_index(key, question, chathistory)
     response_json = {
         "answer": str(response)
     }
@@ -238,11 +229,11 @@ def chat_index_sync():
     now = datetime.datetime.now()
     print(f"post = {now}:{json_data}")
     headers = {"Content-Type": "application/json;charset=utf-8"}
-    return make_response(jsonify(response_json)), 200
+    return JSONResponse(content=response_json, status_code=200)
+
  
-@app.route("/deleteFile", methods=["GET"])
-def delete_index():
-    doc_id = request.args.get("doc_id", None)
+@app.get("/deleteFile/{doc_id}")
+def delete_index(doc_id: str):
     if doc_id is None:
         return "No doc_id found, please include a ?doc_id=blah parameter in the URL", 400
 
@@ -273,14 +264,13 @@ def upload_chunk_worker(companyId, chunks: List):
         print(response)
 
 
-@app.route("/uploadChunk", methods=["POST"])
-def upload_chunk():
-    print(f"uploadChunk = {request.json}")
-    companyId = request.json['companyId']
+@app.post("/uploadChunk")
+def upload_chunk(data: dict):
+    companyId = data['companyId']
     if companyId is None:
         return "No companyId found, please include a ?companyId=str parameter in the URL", 400
     print(f"recv company_id = {companyId}") 
-    chunks = request.json['chunk']
+    chunks = data['chunk']
     if chunks is None:
         return "No chunk found, please include a ?chunk=List parameter in the URL", 400
     print(f"recv_chunks = {chunks}")
@@ -293,7 +283,7 @@ def upload_chunk():
         "errorMsg":"操作成功",
         "data":"null"
         }
-    return make_response(jsonify(response_json)), 200
+    return JSONResponse(content=response_json, status_code=200)
 
 
 def upload_file_worker(companyId, files: List):
@@ -338,13 +328,8 @@ def upload_file_worker(companyId, files: List):
             print(response)
 
     
-@app.route("/uploadFile", methods=["POST"])
-def upload_file():
-    
-    print(f"uploadFile = {request.json}")
-    
-    data = json.loads(request.data)
-    
+@app.post("/uploadFile")
+def upload_file(data: dict):    
     companyId = data.get('companyId')
     if companyId is None:
         return "No companyId found, please include a ?companyId=str parameter in the URL", 400
@@ -363,23 +348,22 @@ def upload_file():
         "errorMsg":"操作成功",
         "data":"null"
         }
-    return make_response(jsonify(response_json)), 200
+    return JSONResponse(content=response_json, status_code=200)
 
 
-@app.route("/getDocuments", methods=["GET"])
-def get_documents():
-    key = request.args.get("key", None)
+@app.get("/getDocuments/{key}")
+def get_documents(key: str):
     if key is None:
         return "No key found, please include a ?key=blah parameter in the URL", 400
     document_list = index_server.get_documents_list(key)
 
-    return make_response(jsonify(document_list)), 200
+    return JSONResponse(content=document_list, status_code=200)
+
     
-    
-@app.route("/")
+@app.get("/")
 def home():
     return "Hello, World! Welcome to the llama_index docker image!"
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001)
+    uvicorn.run(app, host="0.0.0.0", port=5001)
