@@ -15,7 +15,6 @@ manager.register('insert_into_index')
 manager.register('get_documents_list')
 manager.connect()
 
-
 @app.route("/query", methods=["GET"])
 def query_index():
     global manager
