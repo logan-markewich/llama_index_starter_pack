@@ -1,84 +1,276 @@
 import os
+import sys
+import logging
 import pickle
-
-# NOTE: for local testing only, do NOT deploy with your key hardcoded
-os.environ['OPENAI_API_KEY'] = "your key here"
-
 from multiprocessing import Lock
 from multiprocessing.managers import BaseManager
-from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, Document, ServiceContext, StorageContext, load_index_from_storage
+from typing import Any, Dict, List, Optional
+import datetime
 
-index = None
-stored_docs = {}
+from langchain.chat_models import ChatOpenAI
+from llama_index.chat_engine.types import BaseChatEngine
+from llama_index import (Document, GPTVectorStoreIndex, LLMPredictor,
+                         ServiceContext, SimpleDirectoryReader, StorageContext,
+                         load_index_from_storage)
+from llama_index.indices.base import BaseIndex
+from llama_index.llms.base import ChatMessage
+
+# NOTE: for local testing only, do NOT deploy with your key hardcoded
+# os.environ['OPENAI_API_KEY'] = "your key here"
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+
+indexes: Dict[str, BaseIndex] = {}
+stored_docs: Dict[str, Any] = {}
 lock = Lock()
 
-index_name = "./saved_index"
-pkl_name = "stored_documents.pkl"
+def index_path(id: str, makedir: bool = True):
+    index_name = "/root/stored_indexes/"
+    path = os.path.join(index_name, id)
+    if not os.path.exists(path) and makedir:
+        os.makedirs(path)
+    return path
 
+def pkl_file(id: str):
+    doc_name = "/root/stored_documents/"
+    if not os.path.exists(doc_name):
+        os.makedirs(doc_name)
+    return os.path.join(doc_name, id + ".pkl")
 
-def initialize_index():
+def initialize_index(key: str):
     """Create a new global index, or load one from the pre-set path."""
-    global index, stored_docs
-    
-    service_context = ServiceContext.from_defaults(chunk_size_limit=512)
+    assert key is not None
+    print(f"key = {key}")
+    global indexes, stored_docs
     with lock:
-        if os.path.exists(index_name):
-            index = load_index_from_storage(StorageContext.from_defaults(persist_dir=index_name), service_context=service_context)
+        if key in indexes and key in stored_docs:
+            return
         else:
-            index = GPTVectorStoreIndex([], service_context=service_context)
-            index.storage_context.persist(persist_dir=index_name)
-        if os.path.exists(pkl_name):
-            with open(pkl_name, "rb") as f:
-                stored_docs = pickle.load(f)
+            print("initializing the global index...")
+            service_context = ServiceContext.from_defaults(
+                llm=ChatOpenAI(openai_api_key=key, model_name="gpt-3.5-turbo", temperature=0.0),
+                chunk_size_limit=512,
+            )
+            
+            index_name = index_path(key, makedir=False)
+            if os.path.exists(index_name):
+                storage_context = StorageContext.from_defaults(persist_dir=index_name)
+                index = load_index_from_storage(
+                    storage_context, service_context=service_context
+                )
+            else:
+                index = GPTVectorStoreIndex([], service_context=service_context)
+                index.storage_context.persist(persist_dir=index_name)
+            
+            indexes[key] = index
+
+            pkl_name = pkl_file(key)
+            if os.path.exists(pkl_name):
+                with open(pkl_name, "rb") as f:
+                    stored_docs[key] = pickle.load(f)
+            
+            assert key in indexes
 
 
-def query_index(query_text):
+def query_index(key: str, query_text: str, history: Optional[List[ChatMessage]] = None):
     """Query the global index."""
-    global index
-    response = index.as_query_engine().query(query_text)
+    global indexes
+    if key not in indexes:
+        initialize_index(key)
+    service_context = ServiceContext.from_defaults(
+        llm=ChatOpenAI(openai_api_key=key, temperature=0.0)
+    )
+    query_engine = indexes[key].as_query_engine(
+        service_context=service_context, chat_history=history
+    )
+    response = query_engine.query(query_text)
     return response
 
 
-def insert_into_index(doc_file_path, doc_id=None):
+def chat_index(key: str, chat_text, history: Optional[List[ChatMessage]] = None):
+    """Chat the global index."""
+    global indexes
+    if key not in indexes:
+        initialize_index(key)
+    service_context = ServiceContext.from_defaults(
+        llm=ChatOpenAI(openai_api_key=key, model_name="gpt-3.5-turbo", temperature=0.0)
+    )
+    if history is None:
+        chat_engine = indexes[key].as_chat_engine(
+            service_context=service_context, chat_mode="react", verbose=True
+        )
+    else:
+        chat_engine = indexes[key].as_chat_engine(
+            service_context=service_context,
+            chat_mode="react",
+            chat_history=history,
+            verbose=True,
+        )
+
+    response = chat_engine.chat(chat_text)
+    now = datetime.datetime.now()
+    print(f"finish = {now}:{response}")
+
+    return response
+
+
+def insert_doc_index(key: str, doc_file_path, doc_id=None):
     """Insert new document into global index."""
-    global index, stored_docs
+    global indexes, stored_docs
+    
     document = SimpleDirectoryReader(input_files=[doc_file_path]).load_data()[0]
     if doc_id is not None:
         document.doc_id = doc_id
-
+        
+    if key not in indexes:
+        initialize_index(key)
+            
     with lock:
+        index = indexes[key]
+        stored_doc = {}
+        if key not in stored_docs:
+            stored_docs[key] = stored_doc
         # Keep track of stored docs -- llama_index doesn't make this easy
-        stored_docs[document.doc_id] = document.text[0:200]  # only take the first 200 chars
-
+        stored_doc[document.doc_id] = document.text[
+            0:200
+        ]  # only take the first 200 chars
+        index_name = index_path(key)
         index.insert(document)
         index.storage_context.persist(persist_dir=index_name)
-        
+        print(f"index type = {type(index)} save index:{index_name}")
+        pkl_name = pkl_file(key)
         with open(pkl_name, "wb") as f:
-            pickle.dump(stored_docs, f)
+            pickle.dump(stored_doc, f)
+
+        return dict(doc_hash=document.doc_hash, doc_id=document.doc_id)
+
+def insert_chunk_index(key: str, text_chunk: str, doc_id: str):
+    """Insert new document into global index."""
+    global indexes, stored_docs
+    
+    document = Document(text_chunk, doc_id=doc_id)
+    
+    if key not in indexes:
+        initialize_index(key)
+            
+    with lock:
+        index = indexes[key]
+        stored_doc = {}
+        if key not in stored_docs:
+            stored_docs[key] = stored_doc
+        
+        index.insert(document)
+        index_name = index_path(key)
+        index.storage_context.persist(persist_dir=index_name)
+        # Keep track of stored docs -- llama_index doesn't make this easy
+        stored_doc[document.doc_id] = document.text[
+            0:200
+        ]  # only take the first 200 chars
+        pkl_name = pkl_file(key)
+        with open(pkl_name, "wb") as f:
+            pickle.dump(stored_doc, f)
+
+        return dict(doc_hash=document.doc_hash, doc_id=document.doc_id)
+
+
+def delete_from_index(key: str, doc_id):
+    """Delete document from global index."""
+    print(doc_id)
+    global indexes, stored_docs
+    if key not in indexes:
+        initialize_index(key)
+    with lock:
+        indexes[key].delete_ref_doc(doc_id, delete_from_docstore=True)
+        if key in stored_docs:
+            sorted_doc = stored_docs[key]
+            if doc_id in sorted_doc:
+                del sorted_doc[doc_id]
+                
+            pkl_name = pkl_file(key)
+            with open(pkl_name, "wb") as f:
+                pickle.dump(stored_docs[key], f)
 
     return
 
-def get_documents_list():
+
+def get_documents_list(key: str):
     """Get the list of currently stored documents."""
-    global stored_doc
-    documents_list = []
-    for doc_id, doc_text in stored_docs.items():
-        documents_list.append({"id": doc_id, "text": doc_text})
+    global indexes, stored_doc
+    if key not in indexes:
+        initialize_index(key)
 
-    return documents_list
+    with lock:
+        documents_list = []
+        if key not in stored_docs:
+            return documents_list
+        
+        for doc_id, doc_text in stored_docs[key].items():
+            documents_list.append({"id": doc_id, "text": doc_text})
 
+        return documents_list
 
+test_key = "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"
+#test_key = "qwqw121e212222"
+def test_insert_chunk_index():
+    import hashlib
+    md5 = hashlib.md5()
+    chunk = "光环国际是做什么的？是一家培训项目管理与领导力的机构"
+    md5.update(chunk.encode('utf-8'))
+    doc_id = md5.hexdigest()
+    print(doc_id)
+    insert_chunk_index(test_key,chunk, doc_id)
+    
+    docs = get_documents_list(test_key)
+    print(docs)
+
+def test_query_index():
+    text = "商之讯软件有限公司什么时候成立的"
+    res = query_index(test_key, text)
+    print(f"{text} = {res}")
+
+def test_chat_index():
+    text = "你几岁了？"
+    history = [("明朝的第一位皇帝是谁","朱元璋"),("明朝的最后一个皇帝是谁","永历皇帝")]
+    res = chat_index(test_key, text, history)
+    print(f"{text} = {res}")
+ 
+def test_get_documents_list():
+    res = get_documents_list(test_key)
+    print(f"docs = {res}")
+
+def test_delete_from_index():
+    doc_id = 'afe1bb62-4714-4e22-9061-7344c4519465'
+    delete_from_index(test_key, doc_id)
+    test_get_documents_list()
+
+def test_insert_doc_index():
+    insert_doc_index(test_key, "/root/documents/test.pdf", "songchao_doc_id")
+    test_get_documents_list()
+         
 if __name__ == "__main__":
-    # init the global index
-    print("initializing index...")
-    initialize_index()
-
+    env = os.environ
+    if "OPENAI_API_KEY" in env:
+        env.pop("OPENAI_API_KEY")
+        
+    #test_insert_chunk_index()
+    #test_query_index()
+    test_chat_index()
+    #test_get_documents_list()
+    #test_insert_doc_index()
+    #test_delete_from_index()
+    exit()
+    pass
     # setup server
     # NOTE: you might want to handle the password in a less hardcoded way
-    manager = BaseManager(('', 5602), b'password')
-    manager.register('query_index', query_index)
-    manager.register('insert_into_index', insert_into_index)
-    manager.register('get_documents_list', get_documents_list)
+    manager = BaseManager(("", 5602), b"password")
+    manager.register("query_index", query_index)
+    manager.register("chat_index", chat_index)
+    manager.register("insert_doc_index", insert_doc_index)
+    manager.register("insert_chunk_index", insert_chunk_index)
+    manager.register("delete_from_index", delete_from_index)
+    manager.register("get_documents_list", get_documents_list)
+    #manager.register("test", test)
     server = manager.get_server()
 
     print("server started...")
