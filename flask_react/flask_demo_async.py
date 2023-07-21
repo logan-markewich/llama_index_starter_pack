@@ -14,7 +14,8 @@ import datetime
 import index_server
     
 app = FastAPI()
-
+openai_api_key = "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"
+use_global_api = True
 # initialize manager connection
 # NOTE: you might want to handle the password in a less hardcoded way
 
@@ -35,7 +36,7 @@ def test():
 def chat_history(messages : List) -> List[ChatMessage]:
     print(messages)
     
-    history :List[ChatMessage] = None
+    history = []
     
     if isinstance(messages, list):
         for message in messages:
@@ -100,7 +101,10 @@ def query_index(data: dict):
     question = data['question']
     if question is None:
         return "No question found, please include a ?question=blah parameter in the URL", 400
-    
+
+    if use_global_api:
+        key = openai_api_key
+                    
     thread = threading.Thread(target=query_worker, args=(key, question, user_data, ))
     thread.start()
 
@@ -131,7 +135,11 @@ def query_index_sync(data: dict):
     question = data['question']
     if question is None:
         return "No question found, please include a ?question=blah parameter in the URL", 400
+
+    if use_global_api:
+        key = openai_api_key
     
+    print(f"key============{key}")
     response = index_server.query_index(key, question)
     response_json = {
         "answer": str(response)
@@ -179,6 +187,9 @@ def chat_index_ex(data: dict):
     
     messages = data['messages']            
     chathistory = chat_history(messages)
+
+    if use_global_api:
+        key = openai_api_key
     
     print(key)
     print(question)
@@ -216,6 +227,9 @@ def chat_index_sync(data: dict):
     
     messages = data['messages']
     chathistory = chat_history(messages)
+
+    if use_global_api:
+        data['key'] = openai_api_key
     
     print(key)
     print(question)
@@ -245,7 +259,7 @@ def upload_chunk_worker(companyId, chunks: List):
     import json
     url = "http://test-api.qi.work/tpd/api/knowledgeRobotTrain/callback"
     for chunk in chunks:
-        chatgptKey = chunk['chatgptKey']
+        chatgptKey = openai_api_key if use_global_api else chunk['chatgptKey']
         doc_id = chunk['doc_id'] if 'doc_id' in chunk else None
         doc = chunk['chunk']
         if doc_id is not None:
@@ -293,6 +307,10 @@ def upload_file_worker(companyId, files: List):
     save_dir = "/root/documents"
     for file in files:
         key = file['chatgptKey']
+        
+        if use_global_api:
+            key = openai_api_key
+
         infos = file['uploadFile']
         doc_id = file['doc_id'] if 'doc_id' in file else None 
         if doc_id is not None:
@@ -355,6 +373,10 @@ def upload_file(data: dict):
 def get_documents(key: str):
     if key is None:
         return "No key found, please include a ?key=blah parameter in the URL", 400
+    
+    if use_global_api:
+        key = openai_api_key
+
     document_list = index_server.get_documents_list(key)
 
     return JSONResponse(content=document_list, status_code=200)
