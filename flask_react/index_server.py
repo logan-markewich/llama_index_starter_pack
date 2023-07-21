@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional
 import datetime
 
 from langchain.chat_models import ChatOpenAI
+#from langchain.embeddings import OpenAIEmbeddings
+from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.chat_engine.types import BaseChatEngine
 from llama_index import (Document, GPTVectorStoreIndex, LLMPredictor,
                          ServiceContext, SimpleDirectoryReader, StorageContext,
@@ -50,6 +52,7 @@ def initialize_index(key: str):
             print("initializing the global index...")
             service_context = ServiceContext.from_defaults(
                 llm=ChatOpenAI(openai_api_key=key, model_name="gpt-3.5-turbo", temperature=0.0),
+                embed_model = OpenAIEmbedding(api_key=key),
                 chunk_size_limit=512,
             )
             
@@ -78,31 +81,21 @@ def query_index(key: str, query_text: str, history: Optional[List[ChatMessage]] 
     global indexes
     if key not in indexes:
         initialize_index(key)
-    service_context = ServiceContext.from_defaults(
-        llm=ChatOpenAI(openai_api_key=key, temperature=0.0)
-    )
-    query_engine = indexes[key].as_query_engine(
-        service_context=service_context, chat_history=history
-    )
+    query_engine = indexes[key].as_query_engine(chat_history=history)
     response = query_engine.query(query_text)
     return response
 
 
 def chat_index(key: str, chat_text, history: Optional[List[ChatMessage]] = None):
     """Chat the global index."""
+    print(f'chat_index key = {key}')
     global indexes
     if key not in indexes:
         initialize_index(key)
-    service_context = ServiceContext.from_defaults(
-        llm=ChatOpenAI(openai_api_key=key, model_name="gpt-3.5-turbo", temperature=0.0)
-    )
     if history is None:
-        chat_engine = indexes[key].as_chat_engine(
-            service_context=service_context, chat_mode="react", verbose=True
-        )
+        chat_engine = indexes[key].as_chat_engine(chat_mode="react", verbose=True)
     else:
         chat_engine = indexes[key].as_chat_engine(
-            service_context=service_context,
             chat_mode="react",
             chat_history=history,
             verbose=True,
@@ -143,13 +136,13 @@ def insert_doc_index(key: str, doc_file_path, doc_id=None):
         with open(pkl_name, "wb") as f:
             pickle.dump(stored_doc, f)
 
-        return dict(doc_hash=document.doc_hash, doc_id=document.doc_id)
+        return dict(doc_hash=document.hash, doc_id=document.doc_id)
 
 def insert_chunk_index(key: str, text_chunk: str, doc_id: str):
     """Insert new document into global index."""
     global indexes, stored_docs
     
-    document = Document(text_chunk, doc_id=doc_id)
+    document = Document(text = text_chunk, doc_id=doc_id)  if doc_id else Document(text = text_chunk)
     
     if key not in indexes:
         initialize_index(key)
@@ -171,7 +164,7 @@ def insert_chunk_index(key: str, text_chunk: str, doc_id: str):
         with open(pkl_name, "wb") as f:
             pickle.dump(stored_doc, f)
 
-        return dict(doc_hash=document.doc_hash, doc_id=document.doc_id)
+        return dict(doc_hash=document.hash, doc_id=document.doc_id)
 
 
 def delete_from_index(key: str, doc_id):
