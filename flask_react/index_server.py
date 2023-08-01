@@ -16,6 +16,7 @@ from llama_index import (Document, GPTVectorStoreIndex, LLMPredictor,
                          load_index_from_storage)
 from llama_index.indices.base import BaseIndex
 from llama_index.llms.base import ChatMessage
+from llama_index.callbacks import CallbackManager, LlamaDebugHandler, CBEventType
 
 # NOTE: for local testing only, do NOT deploy with your key hardcoded
 # os.environ['OPENAI_API_KEY'] = "your key here"
@@ -50,7 +51,10 @@ def initialize_index(key: str):
             return
         else:
             print("initializing the global index...")
+            llama_debug = LlamaDebugHandler(print_trace_on_end=True)
+            callback_manager = CallbackManager([llama_debug])
             service_context = ServiceContext.from_defaults(
+                callback_manager=callback_manager,
                 llm=ChatOpenAI(openai_api_key=key, model_name="gpt-3.5-turbo", temperature=0.0),
                 embed_model = OpenAIEmbedding(api_key=key),
                 chunk_size_limit=512,
@@ -76,32 +80,31 @@ def initialize_index(key: str):
             assert key in indexes
 
 
-def query_index(key: str, query_text: str, history: Optional[List[ChatMessage]] = None):
+async def query_index(key: str, query_text: str, history: Optional[List[ChatMessage]] = None):
     """Query the global index."""
     global indexes
     if key not in indexes:
         initialize_index(key)
     query_engine = indexes[key].as_query_engine(chat_history=history)
-    response = query_engine.query(query_text)
+    response = await query_engine.aquery(query_text)
     return response
 
 
-def chat_index(key: str, chat_text, history: Optional[List[ChatMessage]] = None):
+async def chat_index(key: str, chat_text, history: Optional[List[ChatMessage]] = None):
     """Chat the global index."""
-    print(f'chat_index key = {key}')
     global indexes
     if key not in indexes:
         initialize_index(key)
     if history is None:
-        chat_engine = indexes[key].as_chat_engine(chat_mode="react", verbose=True)
+        chat_engine = indexes[key].as_chat_engine(chat_mode="context", verbose=True)
     else:
         chat_engine = indexes[key].as_chat_engine(
-            chat_mode="react",
+            chat_mode="context",
             chat_history=history,
             verbose=True,
         )
 
-    response = chat_engine.chat(chat_text)
+    response = await chat_engine.achat(chat_text)
     now = datetime.datetime.now()
     print(f"finish = {now}:{response}")
 
@@ -203,7 +206,7 @@ def get_documents_list(key: str):
 
         return documents_list
 
-test_key = "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"
+test_key = "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"
 #test_key = "qwqw121e212222"
 def test_insert_chunk_index():
     import hashlib
@@ -223,10 +226,15 @@ def test_query_index():
     print(f"{text} = {res}")
 
 def test_chat_index():
-    text = "你几岁了？"
-    history = [("明朝的第一位皇帝是谁","朱元璋"),("明朝的最后一个皇帝是谁","永历皇帝")]
+    text = "白菜怎么卖的？"
+    history = []
+    history.append(ChatMessage(role="user", content="明朝的第一位皇帝是谁"))
+    history.append(ChatMessage(role="assistant", content="朱元璋"))
+    history.append(ChatMessage(role="user", content="明朝的最后一个皇帝是谁"))
+    history.append(ChatMessage(role="assistant", content="永历皇帝"))
     res = chat_index(test_key, text, history)
     print(f"{text} = {res}")
+    
  
 def test_get_documents_list():
     res = get_documents_list(test_key)
@@ -268,3 +276,29 @@ if __name__ == "__main__":
 
     print("server started...")
     server.serve_forever()
+
+
+
+
+
+# from langchain.schema import AgentAction, AgentFinish, OutputParserException
+
+
+# class ConvoOutputParser(AgentOutputParser):
+#     def get_format_instructions(self) -> str:
+#         return FORMAT_INSTRUCTIONS
+
+#     def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
+#         try:
+#             response = parse_json_markdown(text)
+#             action, action_input = response["action"], response["action_input"]
+#             if action == "Final Answer":
+#                 return AgentFinish({"output": action_input}, text)
+#             else:
+#                 return AgentAction(action, action_input, text)
+#         except Exception as e:
+#             raise OutputParserException(f"Could not parse LLM output: {text}") from e
+
+#     @property
+#     def _type(self) -> str:
+#         return "conversational_chat"

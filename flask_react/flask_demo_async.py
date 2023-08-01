@@ -1,11 +1,10 @@
 import os
 import uvicorn
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, FastAPI
 from fastapi.responses import JSONResponse
 from werkzeug.utils import secure_filename
 from typing import Any, Dict, List, Tuple
 from llama_index.llms.base import ChatMessage
-import threading    
 import requests
 import time
 import requests
@@ -15,7 +14,7 @@ import index_server
     
 app = FastAPI()
 openai_api_key = "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"
-use_global_api = True
+use_global_api = False
 # initialize manager connection
 # NOTE: you might want to handle the password in a less hardcoded way
 
@@ -62,12 +61,12 @@ def download_file(url, filename, save_dir):
     # 返回已经下载的文件的完整路径
     return save_path
 
-def query_worker(key, question, userData):
+async def query_worker(key, question, userData):
     print(key)
     print(question);
     url = "http://test-api.qi.work/tpd/api/aiWechatMessage/message/callback"
 
-    response = index_server.query_index(key, question)
+    response = await index_server.query_index(key, question)
     response_json = {
         "answer": str(response)
     }
@@ -80,7 +79,7 @@ def query_worker(key, question, userData):
     print(response)
         
 @app.post("/query")
-def query_index(data: dict):
+async def query_index(data: dict, background_tasks: BackgroundTasks):
     """_summary_
 
     Returns:
@@ -104,10 +103,9 @@ def query_index(data: dict):
 
     if use_global_api:
         key = openai_api_key
-                    
-    thread = threading.Thread(target=query_worker, args=(key, question, user_data, ))
-    thread.start()
 
+    background_tasks.add_task(query_worker, key, question, user_data)
+                    
     response_json = {
         "errorCode": 0,
         "errorMsg": ""
@@ -139,7 +137,6 @@ def query_index_sync(data: dict):
     if use_global_api:
         key = openai_api_key
     
-    print(f"key============{key}")
     response = index_server.query_index(key, question)
     response_json = {
         "answer": str(response)
@@ -148,10 +145,10 @@ def query_index_sync(data: dict):
     headers = {"Content-Type": "application/json;charset=utf-8"}
     return JSONResponse(content=response_json, status_code=200, headers=headers)
 
-def chat_worker(key, question, history, userData):
+async def chat_worker(key, question, history, userData):
     url = "http://test-api.qi.work/tpd/api/aiWechatMessage/message/callback"
 
-    response = index_server.chat_index(key, question, history)
+    response = await index_server.chat_index(key, question, history)
     response_json = {
         "answer": str(response)
     }
@@ -164,7 +161,7 @@ def chat_worker(key, question, history, userData):
     print(response)
     
 @app.post("/chat")
-def chat_index_ex(data: dict):
+async def chat_index_ex(data: dict, background_tasks: BackgroundTasks):
     """_summary_
 
     Returns:
@@ -194,8 +191,7 @@ def chat_index_ex(data: dict):
     print(key)
     print(question)
     
-    thread = threading.Thread(target=chat_worker, args=(key, question, chathistory, user_data, ))
-    thread.start()
+    background_tasks.add_task(chat_worker, key, question, chathistory, user_data)
 
     response_json = {
         "errorCode": 0,
@@ -279,7 +275,7 @@ def upload_chunk_worker(companyId, chunks: List):
 
 
 @app.post("/uploadChunk")
-def upload_chunk(data: dict):
+async def upload_chunk(data: dict, background_tasks: BackgroundTasks):
     companyId = data['companyId']
     if companyId is None:
         return "No companyId found, please include a ?companyId=str parameter in the URL", 400
@@ -289,8 +285,7 @@ def upload_chunk(data: dict):
         return "No chunk found, please include a ?chunk=List parameter in the URL", 400
     print(f"recv_chunks = {chunks}")
         
-    thread = threading.Thread(target=upload_chunk_worker, args=(companyId, chunks,))
-    thread.start()
+    background_tasks.add_task(upload_chunk_worker, companyId, chunks)
     
     response_json = {
         "errorCode":0,
@@ -347,7 +342,7 @@ def upload_file_worker(companyId, files: List):
 
     
 @app.post("/uploadFile")
-def upload_file(data: dict):    
+async def upload_file(data: dict, background_tasks: BackgroundTasks):    
     companyId = data.get('companyId')
     if companyId is None:
         return "No companyId found, please include a ?companyId=str parameter in the URL", 400
@@ -357,10 +352,9 @@ def upload_file(data: dict):
     if files is None:
         return "No files found, please include a ?files=List parameter in the URL", 400
     print(f"files = {files}")
-    
-    thread = threading.Thread(target=upload_file_worker, args=(companyId, files,))
-    thread.start()
 
+    background_tasks.add_task(upload_file_worker, companyId, files)
+    
     response_json = {
         "errorCode":0,
         "errorMsg":"操作成功",
@@ -388,4 +382,5 @@ def home():
 
 
 if __name__ == "__main__":
+    #uvicorn.run("flask_demo_async:app", host="0.0.0.0", port=5001, reload=True)
     uvicorn.run(app, host="0.0.0.0", port=5001)
