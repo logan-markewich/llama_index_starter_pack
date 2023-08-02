@@ -113,7 +113,7 @@ async def query_index(data: dict, background_tasks: BackgroundTasks):
     return JSONResponse(content=response_json, status_code=200)
 
 @app.post("/querySync")
-def query_index_sync(data: dict):
+async def query_index_sync(data: dict):
     """_summary_
 
     Returns:
@@ -137,7 +137,7 @@ def query_index_sync(data: dict):
     if use_global_api:
         key = openai_api_key
     
-    response = index_server.query_index(key, question)
+    response = await index_server.query_index(key, question)
     response_json = {
         "answer": str(response)
     }
@@ -200,7 +200,7 @@ async def chat_index_ex(data: dict, background_tasks: BackgroundTasks):
     return JSONResponse(content=response_json, status_code=200)
 
 @app.post("/chatSync")
-def chat_index_sync(data: dict):
+async def chat_index_sync(data: dict):
     """_summary_
 
     Returns:
@@ -230,7 +230,7 @@ def chat_index_sync(data: dict):
     print(key)
     print(question)
     
-    response = index_server.chat_index(key, question, chathistory)
+    response = await index_server.chat_index(key, question, chathistory)
     response_json = {
         "answer": str(response)
     }
@@ -295,7 +295,7 @@ async def upload_chunk(data: dict, background_tasks: BackgroundTasks):
     return JSONResponse(content=response_json, status_code=200)
 
 
-def upload_file_worker(companyId, files: List):
+async def upload_file_worker(companyId, files: List):
     import requests
     import json
     callback_url = "http://test-api.qi.work/tpd/api/knowledgeRobotTrain/callback"
