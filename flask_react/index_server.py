@@ -6,6 +6,7 @@ from multiprocessing import Lock
 from multiprocessing.managers import BaseManager
 from typing import Any, Dict, List, Optional
 import datetime
+import uuid    
 
 from langchain.chat_models import ChatOpenAI
 #from langchain.embeddings import OpenAIEmbeddings
@@ -89,6 +90,12 @@ async def query_index(key: str, query_text: str, history: Optional[List[ChatMess
     response = await query_engine.aquery(query_text)
     return response
 
+DEFAULT_CONTEXT_TEMPALTE = (
+    "一定要根据提示信息回答问题,如果提示信息里完全没有想要的答案,再根据你先前学习到的知识来回答问题! 提示信息如下."
+    "\n--------------------\n"
+    "{context_str}"
+    "\n--------------------\n"
+)
 
 async def chat_index(key: str, chat_text, history: Optional[List[ChatMessage]] = None):
     """Chat the global index."""
@@ -103,6 +110,7 @@ async def chat_index(key: str, chat_text, history: Optional[List[ChatMessage]] =
             chat_history=history,
             verbose=True,
         )
+    chat_engine._context_template = DEFAULT_CONTEXT_TEMPALTE
 
     response = await chat_engine.achat(chat_text)
     now = datetime.datetime.now()
@@ -114,32 +122,37 @@ async def chat_index(key: str, chat_text, history: Optional[List[ChatMessage]] =
 def insert_doc_index(key: str, doc_file_path, doc_id=None):
     """Insert new document into global index."""
     global indexes, stored_docs
-    
-    document = SimpleDirectoryReader(input_files=[doc_file_path]).load_data()[0]
-    if doc_id is not None:
-        document.doc_id = doc_id
+    documents = SimpleDirectoryReader(input_files=[doc_file_path]).load_data()
+    if doc_id is None:
+        doc_id = str(uuid.uuid4())
         
+    for i, document in enumerate(documents):
+        document.doc_id = f'{doc_id}_{i}'
+                
     if key not in indexes:
         initialize_index(key)
             
     with lock:
         index = indexes[key]
+        
         stored_doc = {}
         if key not in stored_docs:
             stored_docs[key] = stored_doc
-        # Keep track of stored docs -- llama_index doesn't make this easy
-        stored_doc[document.doc_id] = document.text[
-            0:200
-        ]  # only take the first 200 chars
+            
+        for document in documents:
+            # Keep track of stored docs -- llama_index doesn't make this easy
+            stored_doc[document.doc_id] = document.text[0:200]  # only take the first 200 chars
+        
+            index.insert(document)
+            
         index_name = index_path(key)
-        index.insert(document)
         index.storage_context.persist(persist_dir=index_name)
         print(f"index type = {type(index)} save index:{index_name}")
         pkl_name = pkl_file(key)
         with open(pkl_name, "wb") as f:
             pickle.dump(stored_doc, f)
 
-        return dict(doc_hash=document.hash, doc_id=document.doc_id)
+        return dict(doc_hash=document.hash, doc_id=doc_id)
 
 def insert_chunk_index(key: str, text_chunk: str, doc_id: str):
     """Insert new document into global index."""
@@ -177,11 +190,17 @@ def delete_from_index(key: str, doc_id):
     if key not in indexes:
         initialize_index(key)
     with lock:
-        indexes[key].delete_ref_doc(doc_id, delete_from_docstore=True)
+        for i in range(200):
+            indexes[key].delete_ref_doc(f'{doc_id}_{i}', delete_from_docstore=True)
+        index_name = index_path(key)
+        indexes[key].storage_context.persist(persist_dir=index_name)
+    
         if key in stored_docs:
             sorted_doc = stored_docs[key]
-            if doc_id in sorted_doc:
-                del sorted_doc[doc_id]
+            for i in range(200):
+                id = f'{doc_id}_{i}'
+                if id in sorted_doc:
+                    del sorted_doc[id]
                 
             pkl_name = pkl_file(key)
             with open(pkl_name, "wb") as f:
@@ -206,7 +225,7 @@ def get_documents_list(key: str):
 
         return documents_list
 
-test_key = "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"
+test_key = "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"
 #test_key = "qwqw121e212222"
 def test_insert_chunk_index():
     import hashlib
@@ -226,13 +245,16 @@ def test_query_index():
     print(f"{text} = {res}")
 
 def test_chat_index():
-    text = "白菜怎么卖的？"
-    history = []
-    history.append(ChatMessage(role="user", content="明朝的第一位皇帝是谁"))
-    history.append(ChatMessage(role="assistant", content="朱元璋"))
-    history.append(ChatMessage(role="user", content="明朝的最后一个皇帝是谁"))
-    history.append(ChatMessage(role="assistant", content="永历皇帝"))
-    res = chat_index(test_key, text, history)
+    import asyncio    
+
+    text = "你们都有什么课程呀"
+    # history = []
+    # history.append(ChatMessage(role="user", content="明朝的第一位皇帝是谁"))
+    # history.append(ChatMessage(role="assistant", content="朱元璋"))
+    # history.append(ChatMessage(role="user", content="明朝的最后一个皇帝是谁"))
+    # history.append(ChatMessage(role="assistant", content="永历皇帝"))
+    # res = chat_index(test_key, text, history)
+    res = asyncio.run(chat_index(test_key, text))
     print(f"{text} = {res}")
     
  
@@ -253,7 +275,6 @@ if __name__ == "__main__":
     env = os.environ
     if "OPENAI_API_KEY" in env:
         env.pop("OPENAI_API_KEY")
-        
     #test_insert_chunk_index()
     #test_query_index()
     test_chat_index()
