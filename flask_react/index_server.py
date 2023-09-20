@@ -42,17 +42,20 @@ def query_index(query_text):
 def insert_into_index(doc_file_path, doc_id=None):
     """Insert new document into global index."""
     global index, stored_docs
-    document = SimpleDirectoryReader(input_files=[doc_file_path]).load_data()[0]
-    if doc_id is not None:
-        document.doc_id = doc_id
+    documents = SimpleDirectoryReader(input_files=[doc_file_path]).load_data()
 
     with lock:
-        # Keep track of stored docs -- llama_index doesn't make this easy
-        stored_docs[document.doc_id] = document.text[0:200]  # only take the first 200 chars
+        for document in documents:
+            if doc_id is not None:
+                document.doc_id = doc_id
+            index.insert(document)
 
-        index.insert(document)
         index.storage_context.persist(persist_dir=index_name)
-        
+
+        first_document = documents[0]
+        # Keep track of stored docs -- llama_index doesn't make this easy
+        stored_docs[first_document.doc_id] = first_document.text[0:200] # only take the first 200 chars
+
         with open(pkl_name, "wb") as f:
             pickle.dump(stored_docs, f)
 
