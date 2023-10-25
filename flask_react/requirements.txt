@@ -3,3 +3,4 @@ Flask-Cors==3.0.10
 langchain==0.0.154
 llama-index==0.6.13
 pypdf==3.9.0
+werkzeug==2.3.7
