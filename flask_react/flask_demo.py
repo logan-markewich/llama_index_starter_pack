@@ -1,15 +1,18 @@
 import os
-from multiprocessing.managers import BaseManager
+
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
+from multiprocessing.managers import BaseManager
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+app.config['UPLOAD_FOLDER'] = 'documents'
 CORS(app)
 
 # initialize manager connection
 # NOTE: you might want to handle the password in a less hardcoded way
-manager = BaseManager(('', 5602), b'password')
+manager = BaseManager(('127.0.0.1', 5602), b'password')
 manager.register('query_index')
 manager.register('insert_into_index')
 manager.register('get_documents_list')
@@ -26,11 +29,11 @@ def query_index():
     response = manager.query_index(query_text)._getvalue()
     response_json = {
         "text": str(response),
-        "sources": [{"text": str(x.source_text), 
-                     "similarity": round(x.similarity, 2),
-                     "doc_id": str(x.doc_id),
-                     "start": x.node_info['start'],
-                     "end": x.node_info['end']
+        "sources": [{"text": str(x.text), 
+                     "similarity": round(x.score, 2),
+                     "doc_id": str(x.id_),
+                     "start": x.to_dict()['node']['start_char_idx'],
+                     "end": x.to_dict()['node']['end_char_idx']
                     } for x in response.source_nodes]
     }
     return make_response(jsonify(response_json)), 200
@@ -46,13 +49,13 @@ def upload_file():
     try:
         uploaded_file = request.files["file"]
         filename = secure_filename(uploaded_file.filename)
-        filepath = os.path.join('documents', os.path.basename(filename))
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
         uploaded_file.save(filepath)
 
         if request.form.get("filename_as_doc_id", None) is not None:
-            manager.insert_into_index(filepath, doc_id=filename)
+            manager.insert_into_index(app.config['UPLOAD_FOLDER'], doc_id=filename)
         else:
-            manager.insert_into_index(filepath)
+            manager.insert_into_index(app.config['UPLOAD_FOLDER'])
     except Exception as e:
         # cleanup temp file
         if filepath is not None and os.path.exists(filepath):
