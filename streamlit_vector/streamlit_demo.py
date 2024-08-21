@@ -1,46 +1,78 @@
 import os
 import streamlit as st
-from llama_index import (
-    GPTVectorStoreIndex,
+from llama_index.core import (
+    VectorStoreIndex,
     SimpleDirectoryReader,
-    ServiceContext,
     StorageContext,
-    LLMPredictor,
     load_index_from_storage,
 )
-from langchain.chat_models import ChatOpenAI
+from llama_index.core.chat_engine import CondensePlusContextChatEngine
+from llama_index.core.instrumentation import get_dispatcher
+from llama_index.core.instrumentation.event_handlers import BaseEventHandler
+from llama_index.core.instrumentation.events.base import BaseEvent
+from llama_index.core.instrumentation.events.llm import LLMChatEndEvent, LLMChatInProgressEvent, LLMCompletionEndEvent
+from llama_index.llms.openai import OpenAI
+from llama_index.embeddings.openai import OpenAIEmbedding
+
+
+class OpenAITokenCounter(BaseEventHandler):
+    """Custom event handler to count tokens used in OpenAI completions."""
+
+    prev_prompt_token_count: int = 0
+    prev_response_token_count: int = 0
+
+    @property
+    def prev_total_token_count(self):
+        return self.prev_prompt_token_count + self.prev_response_token_count
+
+    def handle(self, event: BaseEvent, **kwargs) -> None:
+        """Logic for getting token counts from raw openai responses."""
+        raw_response = None
+
+        if isinstance(event, LLMChatEndEvent):
+            raw_response = event.response.raw
+        elif isinstance(event, LLMCompletionEndEvent):
+            raw_response = event.response.raw
+        elif isinstance(event, LLMChatInProgressEvent):
+            raw_response = event.response.raw
+
+        if raw_response and hasattr(raw_response, "usage"):
+            self.prev_response_token_count = raw_response.usage.completion_tokens
+            self.prev_prompt_token_count = raw_response.usage.prompt_tokens
+
 
 index_name = "./saved_index"
 documents_folder = "./documents"
 
+dispatcher = get_dispatcher()
 
-@st.cache_resource
+if "token_counter" not in st.session_state:
+    st.session_state.token_counter = OpenAITokenCounter()
+    dispatcher.add_event_handler(st.session_state.token_counter)
+
+
 def initialize_index(index_name, documents_folder):
-    llm_predictor = LLMPredictor(
-        llm=ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
-    )
-    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
+    # load or create index
+    embed_model = OpenAIEmbedding(model_name="text-embedding-3-small")
     if os.path.exists(index_name):
         index = load_index_from_storage(
             StorageContext.from_defaults(persist_dir=index_name),
-            service_context=service_context,
+            embed_model=embed_model,
         )
     else:
         documents = SimpleDirectoryReader(documents_folder).load_data()
-        index = GPTVectorStoreIndex.from_documents(
-            documents, service_context=service_context
+        index = VectorStoreIndex.from_documents(
+            documents, embed_model=embed_model,
         )
         index.storage_context.persist(persist_dir=index_name)
 
     return index
 
 
-@st.cache_data(max_entries=200, persist=True)
-def query_index(_index, query_text):
-    if _index is None:
-        return "Please initialize the index!"
-    response = _index.as_query_engine().query(query_text)
-    return str(response)
+def chat_with_data(query_text):
+    chat_engine = st.session_state.chat_engine
+    response = chat_engine.stream_chat(query_text)
+    return response
 
 
 st.title("🦙 Llama Index Demo 🦙")
@@ -50,28 +82,50 @@ st.write(
 )
 
 index = None
-api_key = st.text_input("Enter your OpenAI API key here:", type="password")
+api_key = st.text_input("Enter your OpenAI API key here:", value=os.environ.get("OPENAI_API_KEY", None), type="password")
 if api_key:
+    os.environ["OPENAI_API_KEY"] = api_key
+
+if "OPENAI_API_KEY" in os.environ and "chat_engine" not in st.session_state:
     os.environ["OPENAI_API_KEY"] = api_key
     index = initialize_index(index_name, documents_folder)
 
+    st.session_state.chat_engine = CondensePlusContextChatEngine.from_defaults(
+        retriever=index.as_retriever(similarity_top_k=2),
+        llm=OpenAI(
+            model="gpt-4o-mini", 
+            additional_kwargs={"stream_options": {"include_usage": True}}
+        ),
+    )
 
-if index is None:
+if "chat_engine" not in st.session_state:
     st.warning("Please enter your api key first.")
 
-text = st.text_input("Query text:", value="What did the author do growing up?")
+st.markdown("## Chat")
 
-if st.button("Run Query") and text is not None:
-    response = query_index(index, text)
-    st.markdown(response)
+text = st.text_input("User Input:")
 
-    llm_col, embed_col = st.columns(2)
-    with llm_col:
-        st.markdown(
-            f"LLM Tokens Used: {index.service_context.llm_predictor._last_token_usage}"
-        )
+if 'chat_engine' in st.session_state and st.button("Send Chat") and text is not None:
+    for message in st.session_state.chat_engine.chat_history:
+        with st.chat_message(name=message.role.value):
+            st.write(message.content)
 
-    with embed_col:
-        st.markdown(
-            f"Embedding Tokens Used: {index.service_context.embed_model._last_token_usage}"
-        )
+    with st.chat_message(name="user"):
+        st.write(text)
+
+    response = chat_with_data(text)
+    
+    with st.chat_message(name="assistant"):
+        st.write_stream(response.response_gen)
+    
+    st.divider()
+    
+    st.markdown("## Sources")
+    for node in response.source_nodes:
+        st.write(str(node))
+
+    st.divider()
+
+    st.markdown(
+        f"LLM Tokens Used: {st.session_state.token_counter.prev_total_token_count}"
+    )
