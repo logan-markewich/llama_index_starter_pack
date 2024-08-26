@@ -1,62 +1,28 @@
-import os
+from token import OP
 import streamlit as st
 
-from PIL import Image
-from llama_index import (
+from llama_index.core import (
     Document,
-    GPTVectorStoreIndex,
-    GPTListIndex,
-    LLMPredictor,
-    ServiceContext,
-    SimpleDirectoryReader,
-    PromptHelper,
+    SummaryIndex,
     StorageContext,
     load_index_from_storage,
-    download_loader,
 )
-from llama_index.readers.file.base import DEFAULT_FILE_READER_CLS
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
 
 from constants import DEFAULT_TERM_STR, DEFAULT_TERMS, REFINE_TEMPLATE, TEXT_QA_TEMPLATE
-from utils import get_llm
 
 
 if "all_terms" not in st.session_state:
     st.session_state["all_terms"] = DEFAULT_TERMS
 
 
-@st.cache_resource
-def get_file_extractor():
-    ImageReader = download_loader("ImageReader")
-    image_loader = ImageReader(text_type="plain_text")
-    file_extractor = DEFAULT_FILE_READER_CLS
-    file_extractor.update(
-        {
-            ".jpg": image_loader,
-            ".png": image_loader,
-            ".jpeg": image_loader,
-        }
-    )
-
-    return file_extractor
-
-
-file_extractor = get_file_extractor()
-
-
 def extract_terms(documents, term_extract_str, llm_name, model_temperature, api_key):
-    llm = get_llm(llm_name, model_temperature, api_key, max_tokens=1024)
+    llm = OpenAI(model=llm_name, temperature=model_temperature, api_key=api_key)
 
-    service_context = ServiceContext.from_defaults(
-        llm_predictor=LLMPredictor(llm=llm),
-        prompt_helper=PromptHelper(
-            max_input_size=4096, max_chunk_overlap=20, num_output=1024
-        ),
-        chunk_size_limit=1024,
-    )
-
-    temp_index = GPTListIndex.from_documents(documents, service_context=service_context)
+    temp_index = SummaryIndex.from_documents(documents)
     terms_definitions = str(
-        temp_index.as_query_engine(response_mode="tree_summarize").query(
+        temp_index.as_query_engine(response_mode="tree_summarize", llm=llm).query(
             term_extract_str
         )
     )
@@ -78,20 +44,18 @@ def extract_terms(documents, term_extract_str, llm_name, model_temperature, api_
 
 def insert_terms(terms_to_definition):
     for term, definition in terms_to_definition.items():
-        doc = Document(f"Term: {term}\nDefinition: {definition}")
+        doc = Document(text=f"Term: {term}\nDefinition: {definition}")
         st.session_state["llama_index"].insert(doc)
 
 
 @st.cache_resource
 def initialize_index(llm_name, model_temperature, api_key):
-    """Create the GPTSQLStructStoreIndex object."""
-    llm = get_llm(llm_name, model_temperature, api_key)
-
-    service_context = ServiceContext.from_defaults(llm_predictor=LLMPredictor(llm=llm))
+    """Create the VectorStoreIndex object."""
+    embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=api_key)
 
     index = load_index_from_storage(
         StorageContext.from_defaults(persist_dir="./initial_index"),
-        service_context=service_context,
+        embed_model=embed_model,
     )
 
     return index
@@ -115,7 +79,7 @@ with setup_tab:
     st.subheader("LLM Setup")
     api_key = st.text_input("Enter your OpenAI API key here", type="password")
     llm_name = st.selectbox(
-        "Which LLM?", ["text-davinci-003", "gpt-3.5-turbo", "gpt-4"]
+        "Which LLM?", ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini"]
     )
     model_temperature = st.slider(
         "LLM Temperature", min_value=0.0, max_value=1.0, step=0.1
@@ -140,44 +104,24 @@ with upload_tab:
 
     if "llama_index" in st.session_state:
         st.markdown(
-            "Either upload an image/screenshot of a document, or enter the text manually."
+            "Upload some text to extract terms and definitions."
         )
-        uploaded_file = st.file_uploader(
-            "Upload an image/screenshot of a document:", type=["png", "jpg", "jpeg"]
-        )
-        document_text = st.text_area("Or enter raw text")
-        if st.button("Extract Terms and Definitions") and (
-            uploaded_file or document_text
-        ):
+        
+        document_text = st.text_area("Enter raw text")
+        if st.button("Extract Terms and Definitions") and document_text:
             st.session_state["terms"] = {}
             terms_docs = {}
-            with st.spinner("Extracting (images may be slow)..."):
-                if document_text:
-                    terms_docs.update(
-                        extract_terms(
-                            [Document(document_text)],
-                            term_extract_str,
-                            llm_name,
-                            model_temperature,
-                            api_key,
-                        )
+            with st.spinner("Extracting..."):
+                terms_docs.update(
+                    extract_terms(
+                        [Document(text=document_text)],
+                        term_extract_str,
+                        llm_name,
+                        model_temperature,
+                        api_key,
                     )
-                if uploaded_file:
-                    Image.open(uploaded_file).convert("RGB").save("temp.png")
-                    img_reader = SimpleDirectoryReader(
-                        input_files=["temp.png"], file_extractor=file_extractor
-                    )
-                    img_docs = img_reader.load_data()
-                    os.remove("temp.png")
-                    terms_docs.update(
-                        extract_terms(
-                            img_docs,
-                            term_extract_str,
-                            llm_name,
-                            model_temperature,
-                            api_key,
-                        )
-                    )
+                )
+                
             st.session_state["terms"].update(terms_docs)
 
     if "terms" in st.session_state and st.session_state["terms"]:
@@ -189,7 +133,8 @@ with upload_tab:
                 insert_terms(st.session_state["terms"])
             st.session_state["all_terms"].update(st.session_state["terms"])
             st.session_state["terms"] = {}
-            st.experimental_rerun()
+            st.markdown("Terms inserted!")
+            st.rerun()
 
 with query_tab:
     st.subheader("Query for Terms/Definitions!")
@@ -209,9 +154,12 @@ with query_tab:
         query_text = st.text_input("Ask about a term or definition:")
         if query_text:
             with st.spinner("Generating answer..."):
+                llm = OpenAI(model=llm_name, temperature=model_temperature, api_key=api_key)
+
                 response = (
                     st.session_state["llama_index"]
                     .as_query_engine(
+                        llm=llm,
                         similarity_top_k=5,
                         response_mode="compact",
                         text_qa_template=TEXT_QA_TEMPLATE,
