@@ -1,5 +1,5 @@
-Flask==2.2.3
-Flask-Cors==3.0.10
+Flask
+Flask-Cors
 llama-index-core>=0.11.0
 # see https://llamahub.ai for all integrations
 llama-index-embeddings-openai  # can replace with the embed model you want to use
