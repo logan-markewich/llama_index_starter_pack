@@ -6,7 +6,15 @@ os.environ['OPENAI_API_KEY'] = "your key here"
 
 from multiprocessing import Lock
 from multiprocessing.managers import BaseManager
-from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, Document, ServiceContext, StorageContext, load_index_from_storage
+from llama_index.core import (
+    SimpleDirectoryReader, 
+    VectorStoreIndex, 
+    StorageContext, 
+    load_index_from_storage,
+)
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
 
 index = None
 stored_docs = {}
@@ -20,12 +28,15 @@ def initialize_index():
     """Create a new global index, or load one from the pre-set path."""
     global index, stored_docs
     
-    service_context = ServiceContext.from_defaults(chunk_size_limit=512)
+    transformations = SentenceSplitter(chunk_size=512)
+    embed_model = OpenAIEmbedding(model_name="text-embedding-3-small")
     with lock:
         if os.path.exists(index_name):
-            index = load_index_from_storage(StorageContext.from_defaults(persist_dir=index_name), service_context=service_context)
+            index = load_index_from_storage(
+                StorageContext.from_defaults(persist_dir=index_name), embed_model=embed_model
+            )
         else:
-            index = GPTVectorStoreIndex([], service_context=service_context)
+            index = VectorStoreIndex(nodes=[], embed_model=embed_model)
             index.storage_context.persist(persist_dir=index_name)
         if os.path.exists(pkl_name):
             with open(pkl_name, "rb") as f:
@@ -35,7 +46,11 @@ def initialize_index():
 def query_index(query_text):
     """Query the global index."""
     global index
-    response = index.as_query_engine().query(query_text)
+    llm = OpenAI(model="gpt-4o-mini")
+    response = index.as_query_engine(
+        similarity_top_k=2,
+        llm=llm,
+    ).query(query_text)
     return response
 
 
@@ -44,11 +59,11 @@ def insert_into_index(doc_file_path, doc_id=None):
     global index, stored_docs
     document = SimpleDirectoryReader(input_files=[doc_file_path]).load_data()[0]
     if doc_id is not None:
-        document.doc_id = doc_id
+        document.id_ = doc_id
 
     with lock:
-        # Keep track of stored docs -- llama_index doesn't make this easy
-        stored_docs[document.doc_id] = document.text[0:200]  # only take the first 200 chars
+        # Keep track of stored docs
+        stored_docs[document.id_] = document.text[0:200]  # only take the first 200 chars
 
         index.insert(document)
         index.storage_context.persist(persist_dir=index_name)

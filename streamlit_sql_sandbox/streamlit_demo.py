@@ -72,12 +72,12 @@ def initialize_agent(
 st.title("🦙 Llama Index SQL Sandbox 🦙")
 st.markdown(
     (
-        "This sandbox uses a sqlite database by default, powered by [Llama Index](https://gpt-index.readthedocs.io/en/latest/index.html) and OpenAI.\n\n"
+        "This sandbox uses a sqlite database by default, powered by [Llama Index](https://docs.llamaindex.ai) and OpenAI.\n\n"
         "The database contains information on health violations and inspections at restaurants in San Francisco."
         "This data is spread across three tables - businesses, inspections, and violations.\n\n"
         "Using the setup page, you can adjust LLM settings, change the context for the SQL tables, and change the tool description for the tool."
         "The other tabs will perform chatbot and text2sql operations.\n\n"
-        "Read more about LlamaIndex's structured data support [here!](https://gpt-index.readthedocs.io/en/latest/guides/tutorials/sql_guide.html)"
+        "Read more about LlamaIndex's structured data support [here!](https://docs.llamaindex.ai/en/stable/examples/index_structs/struct_indices/SQLIndexDemo/)"
     )
 )
 
