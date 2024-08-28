@@ -1,6 +1,7 @@
-altair==4.2.2
-langchain==0.0.154
-llama-index==0.6.13
-streamlit==1.19.0
-streamlit-chat==0.0.2.2
-transformers==4.29.2
+altair
+llama-index-core>=0.11.0
+# see https://llamahub.ai for all integrations
+llama-index-embeddings-openai  # can replace with the embed model you want to use
+llama-index-llms-openai  # can replace with the llm you want to use
+llama-index-agent-openai
+streamlit>=1.37.1
