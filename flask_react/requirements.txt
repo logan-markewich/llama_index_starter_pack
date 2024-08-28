@@ -1,5 +1,7 @@
-Flask==2.2.3
-Flask-Cors==3.0.10
-langchain==0.0.154
-llama-index==0.6.13
-pypdf==3.9.0
+Flask
+Flask-Cors
+llama-index-core>=0.11.0
+# see https://llamahub.ai for all integrations
+llama-index-embeddings-openai  # can replace with the embed model you want to use
+llama-index-llms-openai  # can replace with the llm you want to use
+llama-index-agent-openai

@@ -26,11 +26,11 @@ def query_index():
     response = manager.query_index(query_text)._getvalue()
     response_json = {
         "text": str(response),
-        "sources": [{"text": str(x.source_text), 
-                     "similarity": round(x.similarity, 2),
-                     "doc_id": str(x.doc_id),
+        "sources": [{"text": str(x.text), 
+                     "similarity": round(x.score, 2),
+                     "doc_id": str(x.id_),
                      "start": x.node_info['start'],
-                     "end": x.node_info['end']
+                     "end": x.node_info['end'],
                     } for x in response.source_nodes]
     }
     return make_response(jsonify(response_json)), 200

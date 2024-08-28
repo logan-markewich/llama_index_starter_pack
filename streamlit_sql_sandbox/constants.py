@@ -15,7 +15,7 @@ DEFAULT_INSPECTIONS_TABLE_DESCRP = (
     "the score, date, and type of inspection. The user may query about specific "
     "businesses, whose names can be found by mapping the business_id to the 'businesses' table."
 )
-DEFAULT_LC_TOOL_DESCRP = "Useful for when you want to answer queries about violations and inspections of businesses."
+DEFAULT_TOOL_DESCRP = "Useful for when you want to answer queries about violations and inspections of businesses."
 
 DEFAULT_INGEST_DOCUMENT = (
     "The restaurant KING-KONG had an routine unscheduled inspection on 2023/12/31. "

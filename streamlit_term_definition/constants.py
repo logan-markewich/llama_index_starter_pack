@@ -1,11 +1,9 @@
-from langchain.chains.prompt_selector import ConditionalPromptSelector, is_chat_model
-from langchain.prompts.chat import (
-    AIMessagePromptTemplate,
-    ChatPromptTemplate,
-    HumanMessagePromptTemplate,
-)
+from llama_index.core.llms import ChatMessage, LLM
+from llama_index.core.prompts import PromptTemplate, SelectorPromptTemplate, ChatPromptTemplate
 
-from llama_index.prompts.prompts import QuestionAnswerPrompt, RefinePrompt
+def is_chat_model(llm: LLM) -> bool:
+    return llm.metadata.is_chat_model
+
 
 # Text QA templates
 DEFAULT_TEXT_QA_PROMPT_TMPL = (
@@ -16,7 +14,7 @@ DEFAULT_TEXT_QA_PROMPT_TMPL = (
     "Given the context information, directly answer the following question "
     "(if you don't know the answer, use the best of your knowledge): {query_str}\n"
 )
-TEXT_QA_TEMPLATE = QuestionAnswerPrompt(DEFAULT_TEXT_QA_PROMPT_TMPL)
+TEXT_QA_TEMPLATE = PromptTemplate(DEFAULT_TEXT_QA_PROMPT_TMPL)
 
 # Refine templates
 DEFAULT_REFINE_PROMPT_TMPL = (
@@ -32,33 +30,32 @@ DEFAULT_REFINE_PROMPT_TMPL = (
     "Do not include un-needed or un-helpful information that is shown in the new context. "
     "Do not mention that you've read the above context."
 )
-DEFAULT_REFINE_PROMPT = RefinePrompt(DEFAULT_REFINE_PROMPT_TMPL)
+DEFAULT_REFINE_PROMPT = PromptTemplate(DEFAULT_REFINE_PROMPT_TMPL)
 
 CHAT_REFINE_PROMPT_TMPL_MSGS = [
-    HumanMessagePromptTemplate.from_template("{query_str}"),
-    AIMessagePromptTemplate.from_template("{existing_answer}"),
-    HumanMessagePromptTemplate.from_template(
-        "We have the opportunity to refine the above answer "
-        "(only if needed) with some more context below.\n"
-        "------------\n"
-        "{context_msg}\n"
-        "------------\n"
-        "Given the new context and using the best of your knowledge, improve the existing answer. "
-        "If you can't improve the existing answer, just repeat it again. "
-        "Do not include un-needed or un-helpful information that is shown in the new context. "
-        "Do not mention that you've read the above context."
+    ChatMessage(role="user", content="{query_str}"),
+    ChatMessage(role="assistant", content="{existing_answer}"),
+    ChatMessage(role="user", content=(
+            "We have the opportunity to refine the above answer "
+            "(only if needed) with some more context below.\n"
+            "------------\n"
+            "{context_msg}\n"
+            "------------\n"
+            "Given the new context and using the best of your knowledge, improve the existing answer. "
+            "If you can't improve the existing answer, just repeat it again. "
+            "Do not include un-needed or un-helpful information that is shown in the new context. "
+            "Do not mention that you've read the above context."
+        )
     ),
 ]
 
-CHAT_REFINE_PROMPT_LC = ChatPromptTemplate.from_messages(CHAT_REFINE_PROMPT_TMPL_MSGS)
-CHAT_REFINE_PROMPT = RefinePrompt.from_langchain_prompt(CHAT_REFINE_PROMPT_LC)
+CHAT_REFINE_PROMPT = ChatPromptTemplate.from_messages(CHAT_REFINE_PROMPT_TMPL_MSGS)
 
 # refine prompt selector
-DEFAULT_REFINE_PROMPT_SEL_LC = ConditionalPromptSelector(
-    default_prompt=DEFAULT_REFINE_PROMPT.get_langchain_prompt(),
-    conditionals=[(is_chat_model, CHAT_REFINE_PROMPT.get_langchain_prompt())],
+REFINE_TEMPLATE = SelectorPromptTemplate(
+    DEFAULT_REFINE_PROMPT,
+    conditionals=[(is_chat_model, CHAT_REFINE_PROMPT)],
 )
-REFINE_TEMPLATE = RefinePrompt(langchain_prompt_selector=DEFAULT_REFINE_PROMPT_SEL_LC)
 
 DEFAULT_TERM_STR = (
     "Make a list of terms and definitions that are defined in the context, "
