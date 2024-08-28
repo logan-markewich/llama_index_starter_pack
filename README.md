@@ -1,5 +1,5 @@
 # llama_index_starter_pack
-This repository provides very basic flask, [Streamlit](https://llama-index.streamlit.app/), and docker examples for the [llama_index](https://github.com/jerryjliu/gpt_index) (FKA gpt_index) package.
+This repository provides very basic flask, [Streamlit](https://llama-index.streamlit.app/), and docker examples for the [llama_index](https://github.com/run-llama/llama_index) package.
 
 If you need to quickly create a POC to impress your boss, start here!
 
@@ -27,7 +27,7 @@ There are two main example folders
   - the index is managed by a seperate server using locks, since inserting a document is a mutable operation and flask is multithreaded
   - I strongly recommend using a tool like [Postman](https://www.postman.com/downloads/) to test the api - there are example screenshots using postman in the `postman_examples` folder
   - react_frontend
-    - A basic frontend using react, which calls the flask_api to insert, view, and query a GPTSimpleVectorIndex
+    - A basic frontend using react, which calls the flask_api to insert, view, and query a VectorStoreIndex
     - The scope for a frontend is basically limitless - this is intended to give a small taste of what's possible for users less familiar with python
 
 
@@ -36,19 +36,17 @@ There are two main example folders
 
 - streamlit_vector (runs on localhost:8501)
   - `streamlit run streamlit_demo.py`
-  - creates a simple UI using streamlit and GPTSimpleVectorIndex
+  - creates a simple UI using streamlit and VectorStoreIndex
   - loads text from the documents folder (using `st.cache_resource`, so it only loads once)
   - provides an input text-box and a button to run the query
   - the string response is displayed after it finishes
-  - want to see this example in action? Check it out [here](https://huggingface.co/spaces/llamaindex/llama_index_vector_demo)
 
 - streamlit_sql_sandbox (runs on localhost:8501)
   - `streamlit run streamlit_demo.py`
   - creates a streamlit app using a local SQL database about restaurant inspections in San Francisco ([data sample](https://docs.google.com/spreadsheets/d/1Ag5DBIviYiuRrt2yr3nXmbPFV-FOg5fDH5SM3ZEDnpw/edit#gid=780513932))
   - The "Setup" tab allows you to configure various LLM and LLama Index settings
-  - The "Llama Index" tab demos some basic Text2SQL capabilities using only Llama Index
-  - The "Langchain+Llama Index" tab uses a custom langchain agent, and uses the SQL index from Llama Index as a tool during conversations.
-  - Check out the huggingface space [here!](https://huggingface.co/spaces/llamaindex/llama_index_sql_sandbox)
+  - The ""Single-Shot Query" tab demos some basic Text2SQL capabilities using only Llama Index
+  - The ""Agent + Chat History" tab uses a llamaindex agent, and uses the SQL index from Llama Index as a tool during conversations.
 
 - streamlit_term_definition (runs on localhost:8501)
   - `streamlit run streamlit_demo.py`
